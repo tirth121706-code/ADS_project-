@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SalesPulse Enterprise | Sales Analytics Dashboard</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#082f49',
+            },
+            surface: {
+              dark: '#0f172a',
+              cardDark: '#1e293b',
+              cardDarkBorder: '#334155',
+              light: '#f8fafc',
+              cardLight: '#ffffff',
+              cardLightBorder: '#e2e8f0',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    .glass-card {
+      backdrop-filter: blur(8px);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      border-color: #38bdf8;
+    }
+    
+    /* Animation pulse */
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen transition-colors duration-200" id="appBody">
+
+  <!-- ========================================================================= -->
+  <!-- 1. TOP NAVIGATION BAR                                                     -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-lg text-white tracking-tight">SalesPulse Enterprise</h1>
+          <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">v2.0 Pro</span>
+        </div>
+        <p class="text-xs text-slate-400 flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="backendStatus">Backend Connected • <span id="headerRecordCount">50,000</span> Orders</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="flex items-center gap-2.5">
+      <a href="/docs" target="_blank" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 transition">
+        <i data-lucide="file-code" class="w-3.5 h-3.5 text-sky-400"></i>
+        <span>API Docs</span>
+      </a>
+
+      <button id="openUploadBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 transition">
+        <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-indigo-400"></i>
+        <span>Upload Data</span>
+      </button>
+
+      <button id="exportCsvBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-md shadow-sky-500/20 transition">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>Export CSV</span>
+      </button>
+
+      <button id="themeToggleBtn" title="Toggle Dark/Light Mode" class="p-2 rounded-lg text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 transition">
+        <i data-lucide="sun" id="themeIcon" class="w-4 h-4"></i>
+      </button>
+
+      <button id="refreshDataBtn" title="Refresh Dashboard" class="p-2 rounded-lg text-slate-400 hover:text-white bg-slate-800/80 border border-slate-700 transition">
+        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="px-4 lg:px-8 py-6 space-y-6 max-w-[1700px] mx-auto">
+
+    <!-- ========================================================================= -->
+    <!-- 2. FILTER TOOLBAR                                                         -->
+    <!-- ========================================================================= -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 shadow-xl space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4 text-sky-400"></i>
+          <span class="font-semibold text-sm text-slate-200">Interactive Filter Engine</span>
+          <span id="activeFiltersSummary" class="text-xs text-slate-400 ml-2">Filtering all data</span>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+          <span class="text-slate-400 text-[11px] font-medium mr-1">Presets:</span>
+          <button data-preset="all" class="preset-btn px-2.5 py-1 rounded-md bg-sky-500 text-white font-medium hover:bg-sky-400 transition">All Time</button>
+          <button data-preset="2026" class="preset-btn px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition">2026</button>
+          <button data-preset="2025" class="preset-btn px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition">2025</button>
+          <button data-preset="2024" class="preset-btn px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition">2024</button>
+          <button data-preset="2023" class="preset-btn px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition">2023</button>
+          <button data-preset="last90" class="preset-btn px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition">Last 90 Days</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-4">
+        <!-- Date Range -->
+        <div class="lg:col-span-3 space-y-1.5">
+          <label class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-sky-400"></i> Date Range
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="date" id="startDateInput" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition">
+            <input type="date" id="endDateInput" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition">
+          </div>
+        </div>
+
+        <!-- Regions Filter -->
+        <div class="lg:col-span-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-400"></i> Regions
+            </label>
+            <button id="toggleAllRegionsBtn" class="text-[11px] text-sky-400 hover:underline">Select All</button>
+          </div>
+          <div id="regionsContainer" class="flex flex-wrap gap-1.5">
+            <!-- Dynamically populated Region badges -->
+          </div>
+        </div>
+
+        <!-- Categories Filter -->
+        <div class="lg:col-span-3 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="tag" class="w-3.5 h-3.5 text-emerald-400"></i> Categories
+            </label>
+            <button id="toggleAllCategoriesBtn" class="text-[11px] text-sky-400 hover:underline">Select All</button>
+          </div>
+          <div id="categoriesContainer" class="flex flex-wrap gap-1.5">
+            <!-- Dynamically populated Category badges -->
+          </div>
+        </div>
+
+        <!-- Product Filter & Top N -->
+        <div class="lg:col-span-3 space-y-1.5">
+          <label class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="box" class="w-3.5 h-3.5 text-pink-400"></i> Specific Product
+          </label>
+          <div class="flex gap-2">
+            <select id="productSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition">
+              <option value="">All Products</option>
+            </select>
+            <div class="w-28 flex-shrink-0">
+              <select id="topNSlider" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition" title="Top N Limit">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="20">Top 20</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Controls Footer -->
+      <div class="flex flex-wrap items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+          <span id="filteredRatioLabel">Showing 50,000 of 50,000 records</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="resetFiltersBtn" class="flex items-center gap-1 px-3 py-1 rounded-md text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition">
+            <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset
+          </button>
+          <button id="applyFiltersBtn" class="flex items-center gap-1 px-4 py-1 rounded-md font-semibold text-white bg-sky-500 hover:bg-sky-400 shadow-md shadow-sky-500/20 transition">
+            <i data-lucide="filter" class="w-3 h-3"></i> Apply Filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 3. TOP KPI METRIC CARDS                                                   -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- Total Revenue -->
+      <div class="glass-card bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 relative overflow-hidden group shadow-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</p>
+          <div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+            <i data-lucide="indian-rupee" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiRevenue" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">₹0</h2>
+          <p id="kpiRevenueSub" class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <i data-lucide="activity" class="w-3 h-3 text-sky-400"></i>
+            <span>Calculating...</span>
+          </p>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-600"></div>
+      </div>
+
+      <!-- Total Orders -->
+      <div class="glass-card bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 relative overflow-hidden group shadow-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Orders</p>
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiOrders" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">0</h2>
+          <p id="kpiOrdersSub" class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3 h-3 text-indigo-400"></i>
+            <span>100% completed</span>
+          </p>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+      </div>
+
+      <!-- Units Sold -->
+      <div class="glass-card bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 relative overflow-hidden group shadow-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Units Sold</p>
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiUnits" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">0</h2>
+          <p id="kpiUnitsSub" class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <i data-lucide="pie-chart" class="w-3 h-3 text-emerald-400"></i>
+            <span>0 units / order</span>
+          </p>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+      </div>
+
+      <!-- Average Order Value (AOV) -->
+      <div class="glass-card bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 relative overflow-hidden group shadow-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Avg Order Value</p>
+          <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <i data-lucide="trending-up" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiAOV" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">₹0</h2>
+          <p id="kpiAOVSub" class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i>
+            <span>Basket size index</span>
+          </p>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-600"></div>
+      </div>
+
+      <!-- Average Discount -->
+      <div class="glass-card bg-slate-900 border border-slate-800 rounded-2xl p-4 lg:p-5 relative overflow-hidden group shadow-lg">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Avg Discount</p>
+          <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center">
+            <i data-lucide="percent" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h2 id="kpiDiscount" class="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">0.0%</h2>
+          <p id="kpiDiscountSub" class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <i data-lucide="tag" class="w-3 h-3 text-pink-400"></i>
+            <span>Saved ₹0</span>
+          </p>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 to-rose-600"></div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 4. BUSINESS INSIGHTS STRIP                                                -->
+    <!-- ========================================================================= -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">Executive Intelligence & Key Drivers</h3>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+          <span class="text-slate-400 text-[11px] block">Top Region</span>
+          <span id="insightTopRegion" class="font-bold text-sky-400 text-sm mt-0.5 block truncate">Loading...</span>
+        </div>
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+          <span class="text-slate-400 text-[11px] block">Top Category</span>
+          <span id="insightTopCategory" class="font-bold text-emerald-400 text-sm mt-0.5 block truncate">Loading...</span>
+        </div>
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+          <span class="text-slate-400 text-[11px] block">Star Product</span>
+          <span id="insightTopProduct" class="font-bold text-indigo-400 text-sm mt-0.5 block truncate">Loading...</span>
+        </div>
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+          <span class="text-slate-400 text-[11px] block">Peak Sales Month</span>
+          <span id="insightTopMonth" class="font-bold text-pink-400 text-sm mt-0.5 block truncate">Loading...</span>
+        </div>
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 col-span-2 sm:col-span-1">
+          <span class="text-slate-400 text-[11px] block">Max Order Size</span>
+          <span id="insightMaxOrder" class="font-bold text-amber-400 text-sm mt-0.5 block truncate">Loading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 5. CHARTS GRID (ROW 1: Trend & Category Breakdown)                         -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Trend Chart (8 Cols) -->
+      <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-sky-400"></i>
+              Revenue & Order Trends
+            </h3>
+            <p class="text-xs text-slate-400">Monthly progression of business performance</p>
+          </div>
+          
+          <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
+            <button id="trendRevenueToggle" class="px-3 py-1 rounded-md font-medium bg-sky-500 text-white transition">Revenue (₹)</button>
+            <button id="trendOrdersToggle" class="px-3 py-1 rounded-md font-medium text-slate-400 hover:text-white transition">Orders</button>
+          </div>
+        </div>
+
+        <div class="relative h-[320px] w-full">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Category Donut (4 Cols) -->
+      <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+              Category Distribution
+            </h3>
+            <p class="text-xs text-slate-400">Revenue split across product lines</p>
+          </div>
+        </div>
+
+        <div class="relative h-[320px] w-full flex items-center justify-center">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 6. CHARTS GRID (ROW 2: Regional Performance & Top Products)               -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Regional Performance (6 Cols) -->
+      <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="map" class="w-4 h-4 text-indigo-400"></i>
+              Regional Sales Performance
+            </h3>
+            <p class="text-xs text-slate-400">Revenue breakdown by region & product category</p>
+          </div>
+        </div>
+
+        <div class="relative h-[340px] w-full">
+          <canvas id="regionalChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top Products (6 Cols) -->
+      <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+              Top Products Ranking
+            </h3>
+            <p class="text-xs text-slate-400">Leading SKUs sorted by business volume</p>
+          </div>
+          <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
+            <button id="topProdRevenueBtn" class="px-2.5 py-1 rounded-md font-medium bg-amber-500 text-white transition">Revenue</button>
+            <button id="topProdUnitsBtn" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition">Units</button>
+          </div>
+        </div>
+
+        <div class="relative h-[340px] w-full">
+          <canvas id="topProductsChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 7. CHARTS GRID (ROW 3: Top Customers & Weekday Dynamics)                  -->
+    <!-- ========================================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Top Customers (6 Cols) -->
+      <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4 text-pink-400"></i>
+              High-Value Client Accounts
+            </h3>
+            <p class="text-xs text-slate-400">Top customer accounts ranked by total order spend</p>
+          </div>
+        </div>
+
+        <div class="relative h-[320px] w-full">
+          <canvas id="topCustomersChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Weekday Distribution (6 Cols) -->
+      <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-emerald-400"></i>
+              Day of Week Demand
+            </h3>
+            <p class="text-xs text-slate-400">Order traffic & consumer purchasing habits by weekday</p>
+          </div>
+        </div>
+
+        <div class="relative h-[320px] w-full">
+          <canvas id="weekdayChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 8. INTERACTIVE ORDER RECORDS EXPLORER                                      -->
+    <!-- ========================================================================= -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="font-bold text-base text-white flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4 text-sky-400"></i>
+            Detailed Orders Explorer
+          </h3>
+          <p class="text-xs text-slate-400">Searchable, sortable, paginated enterprise transaction ledger</p>
+        </div>
+
+        <!-- Table Controls -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Search Input -->
+          <div class="relative w-64">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="tableSearchInput" placeholder="Search customer, ID, product..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+          </div>
+
+          <!-- Page Size Selector -->
+          <select id="pageSizeSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+            <option value="10">10 / page</option>
+            <option value="20" selected>20 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table Wrapper -->
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-800/80 text-slate-400 font-semibold uppercase tracking-wider select-none">
+            <tr>
+              <th data-sort="Order_ID" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Order ID <span class="sort-icon">↕</span></th>
+              <th data-sort="Order_Date" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Date <span class="sort-icon">↕</span></th>
+              <th data-sort="Customer_Name" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Customer <span class="sort-icon">↕</span></th>
+              <th data-sort="Product" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Product <span class="sort-icon">↕</span></th>
+              <th data-sort="Category" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Category <span class="sort-icon">↕</span></th>
+              <th data-sort="Region" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition">Region <span class="sort-icon">↕</span></th>
+              <th data-sort="Quantity" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition text-right">Qty <span class="sort-icon">↕</span></th>
+              <th data-sort="Unit_Price_INR" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition text-right">Unit Price <span class="sort-icon">↕</span></th>
+              <th data-sort="Discount_Percent" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition text-right">Disc % <span class="sort-icon">↕</span></th>
+              <th data-sort="Total_Amount_INR" class="sort-header px-4 py-3 cursor-pointer hover:text-white transition text-right text-sky-400">Total (INR) <span class="sort-icon">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody" class="divide-y divide-slate-800/60 font-normal">
+            <!-- Dynamically populated rows -->
+            <tr>
+              <td colspan="10" class="text-center py-8 text-slate-500">Loading orders...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-400">
+        <div id="tableInfoText">Showing 0 to 0 of 0 entries</div>
+        <div class="flex items-center gap-1.5" id="paginationControls">
+          <button id="prevPageBtn" class="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 transition">Previous</button>
+          <span id="pageNumberIndicator" class="px-3 py-1 font-semibold text-slate-200">Page 1</span>
+          <button id="nextPageBtn" class="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 transition">Next</button>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- End Main Container -->
+
+  <!-- ========================================================================= -->
+  <!-- 9. UPLOAD MODAL DIALOG                                                    -->
+  <!-- ========================================================================= -->
+  <div id="uploadModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
+      <button id="closeUploadModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+          <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-white">Upload New Sales Dataset</h3>
+          <p class="text-xs text-slate-400">Replace or update dashboard data dynamically</p>
+        </div>
+      </div>
+
+      <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-8 text-center cursor-pointer transition bg-slate-800/40">
+        <i data-lucide="file-spreadsheet" class="w-10 h-10 mx-auto text-sky-400 mb-2"></i>
+        <p class="text-sm font-semibold text-slate-200">Drag and drop your file here</p>
+        <p class="text-xs text-slate-400 mt-1">Supports <span class="text-sky-400">sales.xlsx</span> or <span class="text-sky-400">.csv</span></p>
+        <input type="file" id="modalFileInput" accept=".xlsx,.xls,.csv" class="hidden">
+      </div>
+
+      <div id="uploadFileInfo" class="hidden text-xs bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+        <div class="flex items-center justify-between">
+          <span id="uploadFileName" class="font-medium text-slate-200 truncate">file.xlsx</span>
+          <span id="uploadFileSize" class="text-slate-400">0 KB</span>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="cancelUploadBtn" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 transition">Cancel</button>
+        <button id="submitUploadBtn" class="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-sky-500 hover:bg-sky-400 disabled:opacity-40 transition flex items-center gap-2">
+          <span>Upload & Refresh</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- ========================================================================= -->
+  <!-- 10. FRONTEND APPLICATION SCRIPT                                           -->
+  <!-- ========================================================================= -->
+  <script>
+    // Global State
+    const state = {
+      meta: { minDate: '', maxDate: '', allRegions: [], allCategories: [], allProducts: [] },
+      filters: {
+        startDate: '',
+        endDate: '',
+        regions: [],
+        categories: [],
+        product: '',
+        topN: 10
+      },
+      table: {
+        page: 1,
+        pageSize: 20,
+        search: '',
+        sortBy: 'Order_Date',
+        sortDir: 'desc',
+        total: 0
+      },
+      activeTrendMetric: 'revenue',
+      activeProductMetric: 'revenue',
+      charts: {
+        trend: null,
+        category: null,
+        regional: null,
+        topProducts: null,
+        topCustomers: null,
+        weekday: null
+      }
+    };
+
+    // Color Palettes
+    const COLORS = [
+      '#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f472b6',
+      '#a78bfa', '#2dd4bf', '#fb923c', '#e879f9', '#4ade80'
+    ];
+
+    // Helper: Rupee Currency Formatter
+    function fmtINR(val) {
+      const num = Number(val) || 0;
+      if (Math.abs(num) >= 1e7) {
+        return '₹' + (num / 1e7).toFixed(2) + ' Cr';
+      }
+      if (Math.abs(num) >= 1e5) {
+        return '₹' + (num / 1e5).toFixed(2) + ' L';
+      }
+      if (Math.abs(num) >= 1e3) {
+        return '₹' + (num / 1e3).toFixed(1) + ' K';
+      }
+      return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    }
+
+    function fmtNumber(val) {
+      return (Number(val) || 0).toLocaleString('en-IN');
+    }
+
+    // Toast Notifications
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'error' ? 'bg-rose-900/90 border-rose-700 text-rose-100' : 'bg-slate-900/95 border-sky-500/50 text-white';
+      toast.className = `${bg} pointer-events-auto border px-4 py-3 rounded-xl shadow-xl text-xs flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `<span class="inline-block w-2 h-2 rounded-full ${type === 'error' ? 'bg-rose-400' : 'bg-sky-400'}"></span><span>${message}</span>`;
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Build URL Query Params from Filters
+    function buildFilterQuery() {
+      const params = new URLSearchParams();
+      if (state.filters.startDate) params.set('start_date', state.filters.startDate);
+      if (state.filters.endDate) params.set('end_date', state.filters.endDate);
+      if (state.filters.regions.length > 0) params.set('regions', state.filters.regions.join(','));
+      if (state.filters.categories.length > 0) params.set('categories', state.filters.categories.join(','));
+      if (state.filters.product) params.set('product', state.filters.product);
+      if (state.filters.topN) params.set('top_n', state.filters.topN);
+      return params.toString();
+    }
+
+    // =========================================================================
+    // API CALLS
+    // =========================================================================
+
+    async function fetchMetadata() {
+      try {
+        const res = await fetch('/api/filters');
+        if (!res.ok) throw new Error('Failed to fetch filters metadata');
+        const data = await res.json();
+        state.meta = data;
+        
+        // Initialize filters default
+        state.filters.startDate = data.min_date;
+        state.filters.endDate = data.max_date;
+        state.filters.regions = [...data.regions];
+        state.filters.categories = [...data.categories];
+
+        // Populate Date Pickers
+        document.getElementById('startDateInput').value = data.min_date;
+        document.getElementById('endDateInput').value = data.max_date;
+        document.getElementById('startDateInput').min = data.min_date;
+        document.getElementById('startDateInput').max = data.max_date;
+        document.getElementById('endDateInput').min = data.min_date;
+        document.getElementById('endDateInput').max = data.max_date;
+
+        // Render Region badges
+        const regContainer = document.getElementById('regionsContainer');
+        regContainer.innerHTML = data.regions.map(r => `
+          <button data-region="${r}" class="region-badge px-2.5 py-1 rounded-md text-xs font-medium bg-sky-500 text-white transition hover:opacity-90">
+            ${r}
+          </button>
+        `).join('');
+
+        // Render Category badges
+        const catContainer = document.getElementById('categoriesContainer');
+        catContainer.innerHTML = data.categories.map(c => `
+          <button data-category="${c}" class="category-badge px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white transition hover:opacity-90">
+            ${c}
+          </button>
+        `).join('');
+
+        // Render Product Select
+        updateProductDropdown();
+
+        document.getElementById('headerRecordCount').textContent = fmtNumber(data.total_records);
+      } catch (err) {
+        console.error('Error fetching metadata:', err);
+        showToast('Error connecting to backend API', 'error');
+      }
+    }
+
+    function updateProductDropdown() {
+      const prodSelect = document.getElementById('productSelect');
+      const activeCats = state.filters.categories;
+      let availableProds = [];
+
+      if (state.meta.products_by_category) {
+        for (const cat of activeCats) {
+          if (state.meta.products_by_category[cat]) {
+            availableProds.push(...state.meta.products_by_category[cat]);
+          }
+        }
+      }
+      if (availableProds.length === 0) availableProds = state.meta.all_products || [];
+      availableProds = Array.from(new Set(availableProds)).sort();
+
+      const currentVal = prodSelect.value;
+      prodSelect.innerHTML = `<option value="">All Products (${availableProds.length})</option>` +
+        availableProds.map(p => `<option value="${p}">${p}</option>`).join('');
+      if (availableProds.includes(currentVal)) prodSelect.value = currentVal;
+    }
+
+    async function fetchKPIs() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/kpis?${query}`);
+        if (!res.ok) throw new Error('Failed to load KPIs');
+        const d = await res.json();
+
+        document.getElementById('kpiRevenue').textContent = d.formatted_revenue;
+        document.getElementById('kpiRevenueSub').textContent = `Exact: ₹${Number(d.total_revenue).toLocaleString('en-IN')}`;
+        
+        document.getElementById('kpiOrders').textContent = fmtNumber(d.total_orders);
+        document.getElementById('kpiOrdersSub').textContent = `${((d.total_orders / (d.total_count || 1)) * 100).toFixed(1)}% of dataset`;
+
+        document.getElementById('kpiUnits').textContent = fmtNumber(d.total_units);
+        document.getElementById('kpiUnitsSub').textContent = `${(d.total_units / (d.total_orders || 1)).toFixed(1)} units / order`;
+
+        document.getElementById('kpiAOV').textContent = d.formatted_aov;
+        document.getElementById('kpiAOVSub').textContent = `₹${Math.round(d.avg_order_value).toLocaleString('en-IN')} average`;
+
+        document.getElementById('kpiDiscount').textContent = `${d.avg_discount.toFixed(1)}%`;
+        document.getElementById('kpiDiscountSub').textContent = `Total saved: ${fmtINR(d.total_discount_amount)}`;
+
+        document.getElementById('filteredRatioLabel').textContent = `Showing ${fmtNumber(d.filtered_count)} of ${fmtNumber(d.total_count)} records (${((d.filtered_count / (d.total_count || 1)) * 100).toFixed(1)}%)`;
+        document.getElementById('activeFiltersSummary').textContent = `${fmtNumber(d.filtered_count)} orders matched`;
+      } catch (err) {
+        console.error('KPI error:', err);
+      }
+    }
+
+    async function fetchInsights() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/insights?${query}`);
+        if (!res.ok) return;
+        const d = await res.json();
+
+        document.getElementById('insightTopRegion').textContent = d.best_region || 'N/A';
+        document.getElementById('insightTopCategory').textContent = d.best_category || 'N/A';
+        document.getElementById('insightTopProduct').textContent = d.best_product || 'N/A';
+        document.getElementById('insightTopMonth').textContent = d.best_month || 'N/A';
+        if (d.highest_order) {
+          document.getElementById('insightMaxOrder').textContent = `${fmtINR(d.highest_order.amount)} (${d.highest_order.product})`;
+        }
+      } catch (err) {
+        console.error('Insights error:', err);
+      }
+    }
+
+    // Chart.js Theme Config
+    function getChartTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      return {
+        textColor: isDark ? '#94a3b8' : '#475569',
+        gridColor: isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)',
+        tooltipBg: isDark ? '#0f172a' : '#ffffff',
+        tooltipText: isDark ? '#ffffff' : '#0f172a',
+        tooltipBorder: isDark ? '#334155' : '#cbd5e1'
+      };
+    }
+
+    async function fetchTrendChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/trend?${query}`);
+        if (!res.ok) throw new Error('Failed to load trend');
+        const data = await res.json();
+
+        const labels = data.map(d => d.period);
+        const revenues = data.map(d => d.revenue);
+        const orders = data.map(d => d.orders);
+
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.trend) state.charts.trend.destroy();
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+        gradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        const isRevenue = state.activeTrendMetric === 'revenue';
+
+        state.charts.trend = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: isRevenue ? 'Monthly Revenue (₹)' : 'Monthly Orders',
+              data: isRevenue ? revenues : orders,
+              borderColor: '#38bdf8',
+              backgroundColor: gradient,
+              borderWidth: 2.5,
+              tension: 0.35,
+              fill: true,
+              pointBackgroundColor: '#38bdf8',
+              pointHoverRadius: 6,
+              pointRadius: labels.length > 24 ? 1 : 3,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                padding: 10,
+                callbacks: {
+                  label: (c) => isRevenue ? `Revenue: ${fmtINR(c.parsed.y)}` : `Orders: ${fmtNumber(c.parsed.y)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'transparent' },
+                ticks: { color: theme.textColor, maxTicksLimit: 12, font: { size: 11 } }
+              },
+              y: {
+                grid: { color: theme.gridColor },
+                ticks: {
+                  color: theme.textColor,
+                  callback: (v) => isRevenue ? fmtINR(v) : fmtNumber(v),
+                  font: { size: 11 }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Trend chart error:', err);
+      }
+    }
+
+    async function fetchCategoryChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/category?${query}`);
+        if (!res.ok) throw new Error('Failed to load category chart');
+        const data = await res.json();
+
+        const labels = data.map(d => d.category);
+        const values = data.map(d => d.revenue);
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.category) state.charts.category.destroy();
+
+        state.charts.category = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: values,
+              backgroundColor: COLORS.slice(0, labels.length),
+              borderWidth: 2,
+              borderColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: theme.textColor, padding: 12, font: { size: 11 }, usePointStyle: true }
+              },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                callbacks: {
+                  label: (c) => {
+                    const total = values.reduce((a, b) => a + b, 0);
+                    const pct = total ? ((c.parsed / total) * 100).toFixed(1) : 0;
+                    return ` ${c.label}: ${fmtINR(c.parsed)} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Category chart error:', err);
+      }
+    }
+
+    async function fetchRegionalChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/regional?${query}`);
+        if (!res.ok) throw new Error('Failed to load regional chart');
+        const data = await res.json();
+
+        const regions = data.regions;
+        const categories = data.categories;
+        const matrix = data.matrix;
+
+        const datasets = categories.map((cat, idx) => ({
+          label: cat,
+          data: regions.map(r => (matrix[r] && matrix[r][cat]) || 0),
+          backgroundColor: COLORS[idx % COLORS.length],
+          borderRadius: 4
+        }));
+
+        const ctx = document.getElementById('regionalChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.regional) state.charts.regional.destroy();
+
+        state.charts.regional = new Chart(ctx, {
+          type: 'bar',
+          data: { labels: regions, datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { color: theme.textColor, font: { size: 10 }, usePointStyle: true }
+              },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                callbacks: {
+                  label: (c) => ` ${c.dataset.label}: ${fmtINR(c.parsed.y)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'transparent' },
+                ticks: { color: theme.textColor, font: { size: 11 } }
+              },
+              y: {
+                grid: { color: theme.gridColor },
+                ticks: {
+                  color: theme.textColor,
+                  callback: (v) => fmtINR(v),
+                  font: { size: 11 }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Regional chart error:', err);
+      }
+    }
+
+    async function fetchTopProductsChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/top-products?${query}&metric=${state.activeProductMetric}`);
+        if (!res.ok) throw new Error('Failed to load top products');
+        const data = await res.json();
+
+        const labels = data.map(d => d.product);
+        const isRevenue = state.activeProductMetric === 'revenue';
+        const values = data.map(d => isRevenue ? d.revenue : d.units);
+
+        const ctx = document.getElementById('topProductsChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.topProducts) state.charts.topProducts.destroy();
+
+        state.charts.topProducts = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: isRevenue ? 'Revenue (₹)' : 'Units Sold',
+              data: values,
+              backgroundColor: '#fbbf24',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                callbacks: {
+                  label: (c) => isRevenue ? `Revenue: ${fmtINR(c.parsed.x)}` : `Units Sold: ${fmtNumber(c.parsed.x)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: theme.gridColor },
+                ticks: {
+                  color: theme.textColor,
+                  callback: (v) => isRevenue ? fmtINR(v) : fmtNumber(v),
+                  font: { size: 10 }
+                }
+              },
+              y: {
+                grid: { color: 'transparent' },
+                ticks: { color: theme.textColor, font: { size: 11 } }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Top products error:', err);
+      }
+    }
+
+    async function fetchTopCustomersChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/top-customers?${query}`);
+        if (!res.ok) throw new Error('Failed to load top customers');
+        const data = await res.json();
+
+        const labels = data.map(d => d.customer_name);
+        const values = data.map(d => d.revenue);
+
+        const ctx = document.getElementById('topCustomersChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.topCustomers) state.charts.topCustomers.destroy();
+
+        state.charts.topCustomers = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Total Spend (₹)',
+              data: values,
+              backgroundColor: '#f472b6',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                callbacks: {
+                  label: (c) => `Spend: ${fmtINR(c.parsed.x)} (${data[c.dataIndex].orders} orders)`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: theme.gridColor },
+                ticks: {
+                  color: theme.textColor,
+                  callback: (v) => fmtINR(v),
+                  font: { size: 10 }
+                }
+              },
+              y: {
+                grid: { color: 'transparent' },
+                ticks: { color: theme.textColor, font: { size: 11 } }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Top customers error:', err);
+      }
+    }
+
+    async function fetchWeekdayChart() {
+      try {
+        const query = buildFilterQuery();
+        const res = await fetch(`/api/charts/weekday?${query}`);
+        if (!res.ok) throw new Error('Failed to load weekday chart');
+        const data = await res.json();
+
+        const labels = data.map(d => d.day);
+        const orders = data.map(d => d.orders);
+
+        const ctx = document.getElementById('weekdayChart').getContext('2d');
+        const theme = getChartTheme();
+
+        if (state.charts.weekday) state.charts.weekday.destroy();
+
+        state.charts.weekday = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Orders by Weekday',
+              data: orders,
+              backgroundColor: '#34d399',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                callbacks: {
+                  label: (c) => `Orders: ${fmtNumber(c.parsed.y)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'transparent' },
+                ticks: { color: theme.textColor, font: { size: 11 } }
+              },
+              y: {
+                grid: { color: theme.gridColor },
+                ticks: {
+                  color: theme.textColor,
+                  callback: (v) => fmtNumber(v),
+                  font: { size: 10 }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Weekday chart error:', err);
+      }
+    }
+
+    async function fetchOrdersTable() {
+      try {
+        const query = buildFilterQuery();
+        const tableParams = new URLSearchParams({
+          page: state.table.page,
+          page_size: state.table.pageSize,
+          search: state.table.search,
+          sort_by: state.table.sortBy,
+          sort_dir: state.table.sortDir
+        });
+
+        const res = await fetch(`/api/orders?${query}&${tableParams.toString()}`);
+        if (!res.ok) throw new Error('Failed to load orders');
+        const d = await res.json();
+
+        state.table.total = d.total;
+
+        const tbody = document.getElementById('ordersTableBody');
+        if (d.orders.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-500">No matching orders found.</td></tr>`;
+        } else {
+          tbody.innerHTML = d.orders.map(o => `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="px-4 py-2.5 font-mono text-sky-400 font-medium">${o.Order_ID}</td>
+              <td class="px-4 py-2.5 text-slate-300">${o.Order_Date}</td>
+              <td class="px-4 py-2.5 font-medium text-slate-200">${o.Customer_Name}</td>
+              <td class="px-4 py-2.5 text-slate-300">${o.Product}</td>
+              <td class="px-4 py-2.5">
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 border border-slate-700 text-slate-300">${o.Category}</span>
+              </td>
+              <td class="px-4 py-2.5 text-slate-300">${o.Region}</td>
+              <td class="px-4 py-2.5 text-right font-medium">${o.Quantity}</td>
+              <td class="px-4 py-2.5 text-right text-slate-400">₹${Number(o.Unit_Price_INR).toLocaleString('en-IN')}</td>
+              <td class="px-4 py-2.5 text-right text-amber-400">${o.Discount_Percent}%</td>
+              <td class="px-4 py-2.5 text-right font-bold text-sky-400">₹${Number(o.Total_Amount_INR).toLocaleString('en-IN')}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Update Table Info & Pagination
+        const start = d.total === 0 ? 0 : (d.page - 1) * d.page_size + 1;
+        const end = Math.min(d.page * d.page_size, d.total);
+        document.getElementById('tableInfoText').textContent = `Showing ${fmtNumber(start)} to ${fmtNumber(end)} of ${fmtNumber(d.total)} entries`;
+        document.getElementById('pageNumberIndicator').textContent = `Page ${d.page} of ${d.total_pages || 1}`;
+
+        document.getElementById('prevPageBtn').disabled = d.page <= 1;
+        document.getElementById('nextPageBtn').disabled = d.page >= d.total_pages;
+      } catch (err) {
+        console.error('Table error:', err);
+      }
+    }
+
+    // Refresh entire dashboard
+    async function refreshAll() {
+      await Promise.all([
+        fetchKPIs(),
+        fetchInsights(),
+        fetchTrendChart(),
+        fetchCategoryChart(),
+        fetchRegionalChart(),
+        fetchTopProductsChart(),
+        fetchTopCustomersChart(),
+        fetchWeekdayChart(),
+        fetchOrdersTable()
+      ]);
+    }
+
+    // =========================================================================
+    // EVENT LISTENERS & UI LOGIC
+    // =========================================================================
+
+    // Region badge toggle
+    document.getElementById('regionsContainer').addEventListener('click', (e) => {
+      const btn = e.target.closest('.region-badge');
+      if (!btn) return;
+      const reg = btn.getAttribute('data-region');
+      if (state.filters.regions.includes(reg)) {
+        if (state.filters.regions.length === 1) {
+          showToast('At least one region must be selected', 'error');
+          return;
+        }
+        state.filters.regions = state.filters.regions.filter(r => r !== reg);
+        btn.classList.remove('bg-sky-500', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+      } else {
+        state.filters.regions.push(reg);
+        btn.classList.remove('bg-slate-800', 'text-slate-400');
+        btn.classList.add('bg-sky-500', 'text-white');
+      }
+    });
+
+    document.getElementById('toggleAllRegionsBtn').addEventListener('click', () => {
+      const all = state.meta.regions || [];
+      if (state.filters.regions.length === all.length) {
+        // Deselect down to first
+        state.filters.regions = [all[0]];
+      } else {
+        state.filters.regions = [...all];
+      }
+      document.querySelectorAll('.region-badge').forEach(b => {
+        const r = b.getAttribute('data-region');
+        if (state.filters.regions.includes(r)) {
+          b.className = 'region-badge px-2.5 py-1 rounded-md text-xs font-medium bg-sky-500 text-white transition hover:opacity-90';
+        } else {
+          b.className = 'region-badge px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 text-slate-400 transition hover:opacity-90';
+        }
+      });
+    });
+
+    // Category badge toggle
+    document.getElementById('categoriesContainer').addEventListener('click', (e) => {
+      const btn = e.target.closest('.category-badge');
+      if (!btn) return;
+      const cat = btn.getAttribute('data-category');
+      if (state.filters.categories.includes(cat)) {
+        if (state.filters.categories.length === 1) {
+          showToast('At least one category must be selected', 'error');
+          return;
+        }
+        state.filters.categories = state.filters.categories.filter(c => c !== cat);
+        btn.classList.remove('bg-emerald-500', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+      } else {
+        state.filters.categories.push(cat);
+        btn.classList.remove('bg-slate-800', 'text-slate-400');
+        btn.classList.add('bg-emerald-500', 'text-white');
+      }
+      updateProductDropdown();
+    });
+
+    document.getElementById('toggleAllCategoriesBtn').addEventListener('click', () => {
+      const all = state.meta.categories || [];
+      if (state.filters.categories.length === all.length) {
+        state.filters.categories = [all[0]];
+      } else {
+        state.filters.categories = [...all];
+      }
+      document.querySelectorAll('.category-badge').forEach(b => {
+        const c = b.getAttribute('data-category');
+        if (state.filters.categories.includes(c)) {
+          b.className = 'category-badge px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white transition hover:opacity-90';
+        } else {
+          b.className = 'category-badge px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 text-slate-400 transition hover:opacity-90';
+        }
+      });
+      updateProductDropdown();
+    });
+
+    // Date Presets
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.getAttribute('data-preset');
+        const minD = state.meta.min_date;
+        const maxD = state.meta.max_date;
+
+        document.querySelectorAll('.preset-btn').forEach(b => {
+          b.classList.remove('bg-sky-500', 'text-white');
+          b.classList.add('bg-slate-800', 'text-slate-300');
+        });
+        btn.classList.remove('bg-slate-800', 'text-slate-300');
+        btn.classList.add('bg-sky-500', 'text-white');
+
+        if (p === 'all') {
+          state.filters.startDate = minD;
+          state.filters.endDate = maxD;
+        } else if (p === '2026') {
+          state.filters.startDate = '2026-01-01';
+          state.filters.endDate = maxD;
+        } else if (p === '2025') {
+          state.filters.startDate = '2025-01-01';
+          state.filters.endDate = '2025-12-31';
+        } else if (p === '2024') {
+          state.filters.startDate = '2024-01-01';
+          state.filters.endDate = '2024-12-31';
+        } else if (p === '2023') {
+          state.filters.startDate = '2023-01-01';
+          state.filters.endDate = '2023-12-31';
+        } else if (p === 'last90') {
+          const maxObj = new Date(maxD);
+          maxObj.setDate(maxObj.getDate() - 90);
+          state.filters.startDate = maxObj.toISOString().slice(0, 10);
+          state.filters.endDate = maxD;
+        }
+
+        document.getElementById('startDateInput').value = state.filters.startDate;
+        document.getElementById('endDateInput').value = state.filters.endDate;
+        state.table.page = 1;
+        refreshAll();
+        showToast(`Filter applied: ${btn.textContent}`);
+      });
+    });
+
+    // Apply & Reset Filters Buttons
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+      state.filters.startDate = document.getElementById('startDateInput').value;
+      state.filters.endDate = document.getElementById('endDateInput').value;
+      state.filters.product = document.getElementById('productSelect').value;
+      state.filters.topN = parseInt(document.getElementById('topNSlider').value, 10) || 10;
+      state.table.page = 1;
+      refreshAll();
+      showToast('Filters applied successfully');
+    });
+
+    document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+      state.filters.startDate = state.meta.min_date;
+      state.filters.endDate = state.meta.max_date;
+      state.filters.regions = [...state.meta.regions];
+      state.filters.categories = [...state.meta.categories];
+      state.filters.product = '';
+      state.filters.topN = 10;
+
+      document.getElementById('startDateInput').value = state.meta.min_date;
+      document.getElementById('endDateInput').value = state.meta.max_date;
+      document.getElementById('productSelect').value = '';
+      document.getElementById('topNSlider').value = '10';
+
+      document.querySelectorAll('.region-badge').forEach(b => {
+        b.className = 'region-badge px-2.5 py-1 rounded-md text-xs font-medium bg-sky-500 text-white transition hover:opacity-90';
+      });
+      document.querySelectorAll('.category-badge').forEach(b => {
+        b.className = 'category-badge px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white transition hover:opacity-90';
+      });
+      updateProductDropdown();
+
+      state.table.page = 1;
+      refreshAll();
+      showToast('Filters reset to default');
+    });
+
+    // Trend Chart Metric Toggle
+    document.getElementById('trendRevenueToggle').addEventListener('click', () => {
+      state.activeTrendMetric = 'revenue';
+      document.getElementById('trendRevenueToggle').className = 'px-3 py-1 rounded-md font-medium bg-sky-500 text-white transition';
+      document.getElementById('trendOrdersToggle').className = 'px-3 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+      fetchTrendChart();
+    });
+
+    document.getElementById('trendOrdersToggle').addEventListener('click', () => {
+      state.activeTrendMetric = 'orders';
+      document.getElementById('trendOrdersToggle').className = 'px-3 py-1 rounded-md font-medium bg-sky-500 text-white transition';
+      document.getElementById('trendRevenueToggle').className = 'px-3 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+      fetchTrendChart();
+    });
+
+    // Top Products Metric Toggle
+    document.getElementById('topProdRevenueBtn').addEventListener('click', () => {
+      state.activeProductMetric = 'revenue';
+      document.getElementById('topProdRevenueBtn').className = 'px-2.5 py-1 rounded-md font-medium bg-amber-500 text-white transition';
+      document.getElementById('topProdUnitsBtn').className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+      fetchTopProductsChart();
+    });
+
+    document.getElementById('topProdUnitsBtn').addEventListener('click', () => {
+      state.activeProductMetric = 'units';
+      document.getElementById('topProdUnitsBtn').className = 'px-2.5 py-1 rounded-md font-medium bg-amber-500 text-white transition';
+      document.getElementById('topProdRevenueBtn').className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+      fetchTopProductsChart();
+    });
+
+    // Table Search with Debounce
+    let searchDebounceTimer;
+    document.getElementById('tableSearchInput').addEventListener('input', (e) => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        state.table.search = e.target.value.trim();
+        state.table.page = 1;
+        fetchOrdersTable();
+      }, 300);
+    });
+
+    // Page Size Select
+    document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+      state.table.pageSize = parseInt(e.target.value, 10);
+      state.table.page = 1;
+      fetchOrdersTable();
+    });
+
+    // Pagination Buttons
+    document.getElementById('prevPageBtn').addEventListener('click', () => {
+      if (state.table.page > 1) {
+        state.table.page--;
+        fetchOrdersTable();
+      }
+    });
+
+    document.getElementById('nextPageBtn').addEventListener('click', () => {
+      state.table.page++;
+      fetchOrdersTable();
+    });
+
+    // Sortable Headers
+    document.querySelectorAll('.sort-header').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-sort');
+        if (state.table.sortBy === col) {
+          state.table.sortDir = state.table.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.table.sortBy = col;
+          state.table.sortDir = 'desc';
+        }
+        document.querySelectorAll('.sort-icon').forEach(si => si.textContent = '↕');
+        const currentIcon = th.querySelector('.sort-icon');
+        if (currentIcon) currentIcon.textContent = state.table.sortDir === 'asc' ? '▲' : '▼';
+        fetchOrdersTable();
+      });
+    });
+
+    // Export CSV Button
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const query = buildFilterQuery();
+      showToast('Exporting filtered data to CSV...');
+      window.location.href = `/api/export?${query}`;
+    });
+
+    // Refresh Button
+    document.getElementById('refreshDataBtn').addEventListener('click', () => {
+      refreshAll();
+      showToast('Dashboard refreshed');
+    });
+
+    // Theme Toggle
+    document.getElementById('themeToggleBtn').addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const body = document.getElementById('appBody');
+      const themeIcon = document.getElementById('themeIcon');
+      
+      if (isDark) {
+        body.classList.remove('bg-slate-50', 'text-slate-900');
+        body.classList.add('bg-slate-950', 'text-slate-100');
+        themeIcon.setAttribute('data-lucide', 'sun');
+      } else {
+        body.classList.remove('bg-slate-950', 'text-slate-100');
+        body.classList.add('bg-slate-50', 'text-slate-900');
+        themeIcon.setAttribute('data-lucide', 'moon');
+      }
+      lucide.createIcons();
+      refreshAll();
+    });
+
+    // Upload Modal Handling
+    const modal = document.getElementById('uploadModal');
+    const dropZone = document.getElementById('dropZone');
+    const modalFileInput = document.getElementById('modalFileInput');
+    let selectedFile = null;
+
+    document.getElementById('openUploadBtn').addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+
+    function closeUploadModal() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      selectedFile = null;
+      document.getElementById('uploadFileInfo').classList.add('hidden');
+      modalFileInput.value = '';
+    }
+
+    document.getElementById('closeUploadModalBtn').addEventListener('click', closeUploadModal);
+    document.getElementById('cancelUploadBtn').addEventListener('click', closeUploadModal);
+
+    dropZone.addEventListener('click', () => modalFileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-sky-500', 'bg-slate-800'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-sky-500', 'bg-slate-800'); });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-sky-500', 'bg-slate-800');
+      if (e.dataTransfer.files.length) handleFileSelected(e.dataTransfer.files[0]);
+    });
+
+    modalFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFileSelected(e.target.files[0]);
+    });
+
+    function handleFileSelected(file) {
+      selectedFile = file;
+      document.getElementById('uploadFileName').textContent = file.name;
+      document.getElementById('uploadFileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+      document.getElementById('uploadFileInfo').classList.remove('hidden');
+    }
+
+    document.getElementById('submitUploadBtn').addEventListener('click', async () => {
+      if (!selectedFile) {
+        showToast('Please select a file to upload', 'error');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const submitBtn = document.getElementById('submitUploadBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span>Uploading...</span>`;
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Upload failed');
+        showToast(data.message || 'Dataset uploaded successfully!');
+        closeUploadModal();
+        await fetchMetadata();
+        await refreshAll();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Upload & Refresh</span>`;
+      }
+    });
+
+    // Initial Startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      await fetchMetadata();
+      await refreshAll();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
